@@ -1,52 +1,27 @@
 import {useReducer} from "react";
+import {BRUSHES, TILE_TYPES, TileKey} from "./types.ts";
+import {gridReducer, PendingUpdate} from "./reducer.ts";
 
 type GridProps = {
-    cells: number[]
-    temporary: Update[]
+    cells: TileKey[]
+    temporary: PendingUpdate[]
     onPointerEnter: (cell: number) => void
     onPointerLeave: (cell: number) => void
 }
 
 
-const tiles = [
-    {class: 'bg-[url("/tiles/tile_0001.png")]', value: -1},
-    {class: 'bg-[url("/tiles/tile_0002.png")]', value: -2},
-    {class: 'bg-[url("/tiles/tile_0043.png")]', value: -3},
-    {class: 'bg-[url("/tiles/tile_0025.png")]', value: -4},
-
-]
-
-const getTile = (cell: number) => {
-    switch (cell) {
-        case -1:
-            return 'bg-[url("/tiles/tile_0001.png")]'
-        case -2:
-            return 'bg-[url("/tiles/tile_0002.png")]'
-        case -3:
-            return 'bg-[url("/tiles/tile_0043.png")]'
-        case -4:
-            return 'bg-[url("/tiles/tile_0025.png")]'
-        default:
-            return 'bg-[url("/tiles/tile_0001.png")]'
-    }
-}
-
-const arrayItems = Array.from({length: 8 * 8}, (_, index) => index + 1);
+const arrayItems: TileKey[] = Array.from({length: 8 * 8}, () => 1);
 
 const Grid = ({cells, temporary, onPointerEnter, onPointerLeave}: GridProps) => {
-    // Replace 'arrayItems' with your actual array of 100 elements
-
-    console.log(temporary)
-
     return (
         <div className="inline-grid grid-cols-8 border-black border-2">
             {cells.map((cell, i) => {
                 const v = temporary.find((item) => item.index === i)
-                const tile = getTile(v ? v.value : cell)
+                const tileUrl = TILE_TYPES[v ? v.value : cell].url
 
                 return (
                     <div key={i}
-                         className={`${cell !== -1 ? "bg-gray-300" : "bg-green-300"} h-12 w-12 flex items-center justify-center ${tile} bg-cover`}
+                         className={`bg-gray-300 h-8 w-8 flex items-center justify-center bg-[url("${tileUrl}")] bg-cover`}
                          onPointerEnter={() => onPointerEnter(i)}
                          onPointerLeave={() => onPointerLeave(i)}
                     >
@@ -58,82 +33,26 @@ const Grid = ({cells, temporary, onPointerEnter, onPointerLeave}: GridProps) => 
     );
 };
 
-type Update = {
-    index: number
-    value: number
-}
-
-interface State {
-    grid: number[];
-    hovered: number | null;
-    dragging: boolean;
-    updates: Update[];
-    brush: number;
-}
-
-type Action =
-    | { type: 'DRAG_START' }
-    | { type: 'BRUSH_SELECTED'; brush: number }
-    | { type: 'POINTER_ENTER'; index: number }
-    | { type: 'POINTER_LEAVE'; index: number }
-    | { type: 'DRAG_END' };
-
-// Define the reducer function
-const gridReducer = (state: State, action: Action) => {
-    switch (action.type) {
-        case 'POINTER_ENTER':
-            if (state.dragging) {
-                return {
-                    ...state,
-                    updates: [...state.updates, {value: state.brush, index: action.index}],
-                    hovered: action.index
-                };
-            } else {
-                return {...state, hovered: action.index};
-            }
-        case 'POINTER_LEAVE':
-            return {...state, hovered: null};
-        case 'DRAG_START':
-            return {
-                ...state,
-                dragging: true,
-                updates: state.hovered !== null ? [{value: state.brush, index: state.hovered}] : []
-            };
-        case 'DRAG_END': {
-            const updatedArray = [...state.grid]
-            state.updates.forEach(update => {
-                updatedArray[update.index] = update.value;
-            })
-            return {...state, grid: updatedArray, dragging: false, updates: []};
-        }
-        case 'BRUSH_SELECTED':
-            return {...state, brush: action.brush}
-        default:
-            return state;
-    }
-};
-
 function Brushes({onChange}: { onChange: (brush: number) => void }) {
     return <div className="flex flex-row">
-        {tiles.map((tile, i) =>
+        {BRUSHES.map((tile, i) =>
             (
                 <div key={i}
-                     className={`h-12 w-12 flex items-center justify-center ${tile.class} bg-cover`}
-                     onClick={() => onChange(tile.value)}
+                     className={`h-12 w-12 flex items-center justify-center bg-[url("${TILE_TYPES[tile].url}")] bg-cover`}
+                     onClick={() => onChange(TILE_TYPES[tile].key)}
                 />
             )
         )}
     </div>;
 }
 
-function App() {
 
-    // Initialize state using useReducer
+function App() {
     const [state, dispatch] = useReducer(gridReducer, {
         grid: arrayItems,
         hovered: null,
         dragging: false,
-        brush: -1,
+        brush: 2,
         updates: [],
     });
 
