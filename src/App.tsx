@@ -2,21 +2,36 @@ import {useReducer} from "react";
 
 type GridProps = {
     cells: number[]
-    temporary: number[]
+    temporary: Update[]
     onPointerEnter: (cell: number) => void
     onPointerLeave: (cell: number) => void
 }
 
-const getTile = (cell: number, index: number, temp: number[]) => {
-    if(temp.includes(index)) {
-        return "bg-[url('/tile_0002.png')]"
-    }
 
-    if (cell === -1) {
-        return "bg-[url('/tile_0002.png')]"
+const tiles = [
+    {class: 'bg-[url("/tiles/tile_0001.png")]', value: -1},
+    {class: 'bg-[url("/tiles/tile_0002.png")]', value: -2},
+    {class: 'bg-[url("/tiles/tile_0043.png")]', value: -3},
+    {class: 'bg-[url("/tiles/tile_0025.png")]', value: -4},
+
+]
+
+const getTile = (cell: number) => {
+    switch (cell) {
+        case -1:
+            return 'bg-[url("/tiles/tile_0001.png")]'
+        case -2:
+            return 'bg-[url("/tiles/tile_0002.png")]'
+        case -3:
+            return 'bg-[url("/tiles/tile_0043.png")]'
+        case -4:
+            return 'bg-[url("/tiles/tile_0025.png")]'
+        default:
+            return 'bg-[url("/tiles/tile_0001.png")]'
     }
-    return "bg-[url('/tile_0001.png')]"
 }
+
+const arrayItems = Array.from({length: 8 * 8}, (_, index) => index + 1);
 
 const Grid = ({cells, temporary, onPointerEnter, onPointerLeave}: GridProps) => {
     // Replace 'arrayItems' with your actual array of 100 elements
@@ -24,32 +39,41 @@ const Grid = ({cells, temporary, onPointerEnter, onPointerLeave}: GridProps) => 
     console.log(temporary)
 
     return (
-        <div className="inline-grid grid-cols-10 gap-0.5 border-black border-2">
-            {/* The loop will create a 10x10 grid with your array elements */}
-            {cells.map((cell, i) => (
-                <div key={i}
-                     className={`${cell !== -1 ? "bg-gray-300" : "bg-green-300"} h-12 w-12 flex items-center justify-center ${getTile(cell, i, temporary)} bg-cover`}
-                     onPointerEnter={() => onPointerEnter(i)}
-                     onPointerLeave={() => onPointerLeave(i)}
-                >
+        <div className="inline-grid grid-cols-8 border-black border-2">
+            {cells.map((cell, i) => {
+                const v = temporary.find((item) => item.index === i)
+                const tile = getTile(v ? v.value : cell)
 
-                </div>
-            ))}
+                return (
+                    <div key={i}
+                         className={`${cell !== -1 ? "bg-gray-300" : "bg-green-300"} h-12 w-12 flex items-center justify-center ${tile} bg-cover`}
+                         onPointerEnter={() => onPointerEnter(i)}
+                         onPointerLeave={() => onPointerLeave(i)}
+                    >
+
+                    </div>
+                )
+            })}
         </div>
     );
 };
 
-const arrayItems = Array.from({length: 100}, (_, index) => index + 1);
+type Update = {
+    index: number
+    value: number
+}
 
 interface State {
     grid: number[];
     hovered: number | null;
     dragging: boolean;
-    draggedIndex: number[];
+    updates: Update[];
+    brush: number;
 }
 
 type Action =
     | { type: 'DRAG_START' }
+    | { type: 'BRUSH_SELECTED'; brush: number }
     | { type: 'POINTER_ENTER'; index: number }
     | { type: 'POINTER_LEAVE'; index: number }
     | { type: 'DRAG_END' };
@@ -59,28 +83,48 @@ const gridReducer = (state: State, action: Action) => {
     switch (action.type) {
         case 'POINTER_ENTER':
             if (state.dragging) {
-                console.log('dragging', action.index)
-                return {...state, draggedIndex: [...state.draggedIndex, action.index], hovered: action.index};
+                return {
+                    ...state,
+                    updates: [...state.updates, {value: state.brush, index: action.index}],
+                    hovered: action.index
+                };
             } else {
                 return {...state, hovered: action.index};
             }
         case 'POINTER_LEAVE':
             return {...state, hovered: null};
         case 'DRAG_START':
-            return {...state, dragging: true, draggedIndex: state.hovered !== null ? [state.hovered] : []};
+            return {
+                ...state,
+                dragging: true,
+                updates: state.hovered !== null ? [{value: state.brush, index: state.hovered}] : []
+            };
         case 'DRAG_END': {
-            const updatedArray = state.grid.map((cell, i) => {
-                if (state.draggedIndex.includes(i)) {
-                    return -1;
-                }
-                return cell;
-            });
-            return {...state, grid: updatedArray, dragging: false, draggedIndex: []};
+            const updatedArray = [...state.grid]
+            state.updates.forEach(update => {
+                updatedArray[update.index] = update.value;
+            })
+            return {...state, grid: updatedArray, dragging: false, updates: []};
         }
+        case 'BRUSH_SELECTED':
+            return {...state, brush: action.brush}
         default:
             return state;
     }
 };
+
+function Brushes({onChange}: { onChange: (brush: number) => void }) {
+    return <div className="flex flex-row">
+        {tiles.map((tile, i) =>
+            (
+                <div key={i}
+                     className={`h-12 w-12 flex items-center justify-center ${tile.class} bg-cover`}
+                     onClick={() => onChange(tile.value)}
+                />
+            )
+        )}
+    </div>;
+}
 
 function App() {
 
@@ -89,11 +133,12 @@ function App() {
         grid: arrayItems,
         hovered: null,
         dragging: false,
-        draggedIndex: [],
+        brush: -1,
+        updates: [],
     });
 
     // Destructure state for ease of use
-    const {grid, draggedIndex: temp } = state;
+    const {grid, updates: temp} = state;
 
 
     const onPointerDown = () => {
@@ -112,21 +157,24 @@ function App() {
         dispatch({type: 'POINTER_LEAVE', index});
     };
 
+    const handleBrushChange = (brush: number) => {
+        dispatch({type: 'BRUSH_SELECTED', brush});
+    };
+
 
     return (
         <>
             <div>
-                aa
+                <Brushes onChange={handleBrushChange}/>
             </div>
-            <div className={"flex flex-row items-start h-screen bg-red-500"} onDragStart={() => {
+            <div className={"flex flex-row items-start h-screen"} onDragStart={() => {
                 console.log("drag start")
             }}
                  onPointerDown={onPointerDown}
                  onPointerUp={onPointerUp}
             >
-                <Grid cells={grid} temporary={temp} onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}/>
-                <Grid cells={grid} temporary={temp} onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}/>
-                {/*<Grid cells={grid} onUpdate={updateArrayItem}/>*/}
+                <Grid cells={grid} temporary={temp} onPointerEnter={handlePointerEnter}
+                      onPointerLeave={handlePointerLeave}/>
             </div>
         </>
     )
