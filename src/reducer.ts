@@ -1,4 +1,4 @@
-import {TileKey} from "./types.ts";
+import {Cell, TILE_TYPES, TileKey} from "./types.ts";
 
 export type PendingUpdate = {
     index: number
@@ -6,7 +6,7 @@ export type PendingUpdate = {
 }
 
 interface State {
-    grid: TileKey[];
+    grid: Cell[];
     hovered: number | null;
     dragging: boolean;
     updates: PendingUpdate[];
@@ -41,9 +41,12 @@ export const gridReducer = (state: State, action: Action) => {
                 updates: state.hovered !== null ? [{value: state.brush, index: state.hovered}] : []
             };
         case 'DRAG_END': {
+            // TODO: Does this need to be a deep copy?
             const updatedArray = [...state.grid]
             state.updates.forEach(update => {
-                updatedArray[update.index] = update.value;
+                updatedArray[update.index] = TILE_TYPES[update.value].layer === 'bottom' ?
+                    {...updatedArray[update.index], bottom: update.value} :
+                    {...updatedArray[update.index], top: update.value}
             })
             return {...state, grid: updatedArray, dragging: false, updates: []};
         }

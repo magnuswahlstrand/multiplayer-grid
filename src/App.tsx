@@ -1,45 +1,71 @@
-import {useReducer} from "react";
-import {BRUSHES, TILE_TYPES, TileKey} from "./types.ts";
+import {ComponentProps, useReducer} from "react";
+import {BRUSHES, Cell, TILE_TYPES, TileKey} from "./types.ts";
 import {gridReducer, PendingUpdate} from "./reducer.ts";
 
 type GridProps = {
-    cells: TileKey[]
+    cells: Cell[]
     temporary: PendingUpdate[]
     onPointerEnter: (cell: number) => void
     onPointerLeave: (cell: number) => void
 }
 
 
-const arrayItems: TileKey[] = Array.from({length: 8 * 8}, () => 1);
+const arrayItems: Cell[] = Array.from({length: 8 * 8}, () => ({top: null, bottom: 1}));
+
+
+type ImageDivProps = ComponentProps<"div"> & { spritePosition: string }
+
+const ImageDiv = (props: ImageDivProps) => {
+    // You can define your hardcoded styles here.
+    // Return the JSX with the div and the hardcoded styles
+    return <div
+        {...props}
+        className={`h-16 w-16`}
+        style={{
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: props.spritePosition,
+            backgroundImage: `url("/tiles/tilemap_resized.png")`,
+            ...props.style, // Allow overriding of styles through props
+        }}>
+        {props.children}
+    </div>;
+};
 
 const Grid = ({cells, temporary, onPointerEnter, onPointerLeave}: GridProps) => {
     return (
         <div className="inline-grid grid-cols-8 border-black border-2">
             {cells.map((cell, i) => {
                 const v = temporary.find((item) => item.index === i)
-                const tileUrl = TILE_TYPES[v ? v.value : cell].url
+
+                const top = v && TILE_TYPES[v.value].layer === 'top' ? TILE_TYPES[v.value].key : cell.top
+                const bottom = v && TILE_TYPES[v.value].layer === 'bottom' ? TILE_TYPES[v.value].key : cell.bottom
 
                 return (
-                    <div key={i}
-                         className={`bg-gray-300 h-8 w-8 flex items-center justify-center bg-[url("${tileUrl}")] bg-cover`}
-                         onPointerEnter={() => onPointerEnter(i)}
-                         onPointerLeave={() => onPointerLeave(i)}
+                    <ImageDiv key={i}
+                              spritePosition={TILE_TYPES[bottom].sprite.cssPosition}
+                              onPointerEnter={() => onPointerEnter(i)}
+                              onPointerLeave={() => onPointerLeave(i)}
                     >
-
-                    </div>
+                        {top !== null &&
+                            <ImageDiv key={i}
+                                      spritePosition={TILE_TYPES[top].sprite.cssPosition}
+                                      onPointerEnter={() => onPointerEnter(i)}
+                                      onPointerLeave={() => onPointerLeave(i)}
+                            />}
+                    </ImageDiv>
                 )
             })}
         </div>
     );
 };
 
-function Brushes({onChange}: { onChange: (brush: number) => void }) {
+function Brushes({onChange}: { onChange: (brush: TileKey) => void }) {
     return <div className="flex flex-row">
         {BRUSHES.map((tile, i) =>
             (
-                <div key={i}
-                     className={`h-12 w-12 flex items-center justify-center bg-[url("${TILE_TYPES[tile].url}")] bg-cover`}
-                     onClick={() => onChange(TILE_TYPES[tile].key)}
+                <ImageDiv key={i}
+                          spritePosition={TILE_TYPES[tile].sprite.cssPosition}
+                          onClick={() => onChange(TILE_TYPES[tile].key)}
                 />
             )
         )}
@@ -76,7 +102,7 @@ function App() {
         dispatch({type: 'POINTER_LEAVE', index});
     };
 
-    const handleBrushChange = (brush: number) => {
+    const handleBrushChange = (brush: TileKey) => {
         dispatch({type: 'BRUSH_SELECTED', brush});
     };
 
