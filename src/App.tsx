@@ -1,6 +1,8 @@
-import {ComponentProps, useReducer} from "react";
-import {BRUSHES, Cell, TILE_TYPES, TileKey} from "./types.ts";
+import {useReducer} from "react";
+import {Cell, TILE_TYPES, TileKey} from "./types.ts";
 import {gridReducer, PendingUpdate} from "./reducer.ts";
+import {ImageDiv} from "./components/ImageDiv.tsx";
+import {Brushes} from "./components/Brushes.tsx";
 
 type GridProps = {
     cells: Cell[]
@@ -10,26 +12,8 @@ type GridProps = {
 }
 
 
-const arrayItems: Cell[] = Array.from({length: 8 * 8}, () => ({top: null, bottom: 1}));
+const arrayItems: Cell[] = Array.from({length: 8 * 8}, () => ({top: null, bottom: 100}));
 
-
-type ImageDivProps = ComponentProps<"div"> & { spritePosition: string }
-
-const ImageDiv = (props: ImageDivProps) => {
-    // You can define your hardcoded styles here.
-    // Return the JSX with the div and the hardcoded styles
-    return <div
-        {...props}
-        className={`h-16 w-16`}
-        style={{
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: props.spritePosition,
-            backgroundImage: `url("/tiles/tilemap_resized.png")`,
-            ...props.style, // Allow overriding of styles through props
-        }}>
-        {props.children}
-    </div>;
-};
 
 const Grid = ({cells, temporary, onPointerEnter, onPointerLeave}: GridProps) => {
     return (
@@ -37,8 +21,8 @@ const Grid = ({cells, temporary, onPointerEnter, onPointerLeave}: GridProps) => 
             {cells.map((cell, i) => {
                 const v = temporary.find((item) => item.index === i)
 
-                const top = v && TILE_TYPES[v.value].layer === 'top' ? TILE_TYPES[v.value].key : cell.top
-                const bottom = v && TILE_TYPES[v.value].layer === 'bottom' ? TILE_TYPES[v.value].key : cell.bottom
+                const top = v && TILE_TYPES[v.value].layer === 'top' ? v.value : cell.top
+                const bottom = v && TILE_TYPES[v.value].layer === 'bottom' ? v.value : cell.bottom
 
                 return (
                     <ImageDiv key={i}
@@ -59,26 +43,13 @@ const Grid = ({cells, temporary, onPointerEnter, onPointerLeave}: GridProps) => 
     );
 };
 
-function Brushes({onChange}: { onChange: (brush: TileKey) => void }) {
-    return <div className="flex flex-row">
-        {BRUSHES.map((tile, i) =>
-            (
-                <ImageDiv key={i}
-                          spritePosition={TILE_TYPES[tile].sprite.cssPosition}
-                          onClick={() => onChange(TILE_TYPES[tile].key)}
-                />
-            )
-        )}
-    </div>;
-}
-
 
 function App() {
     const [state, dispatch] = useReducer(gridReducer, {
         grid: arrayItems,
         hovered: null,
         dragging: false,
-        brush: 2,
+        brush: 200,
         updates: [],
     });
 
